@@ -78,8 +78,10 @@ class ShintoCharm {
     pop();
   }
 }
-ShintoCharm.charmList = null; // инициализируем в setup
-ShintoCharm.baseColors = null;
+// ...existing code...
+// ...existing code...
+// ...existing code...
+// ...existing code...
 
 class Flower {
   constructor() {
@@ -103,6 +105,7 @@ class Flower {
     pop();
   }
 }
+// ...existing code...
 
 class LifeObstacle {
   constructor() {
@@ -135,7 +138,7 @@ class LifeObstacle {
     text(this.char, this.x, this.y);
   }
 }
-LifeObstacle.obstacleList = null; // инициализируем в setup
+// ...existing code...
 
 function preload() {
   state.song = loadSound('./DELTARUNE_THE_WORLD_REVOLVING.mp3'); // локальный файл
@@ -178,35 +181,81 @@ function setup() {
     state.bubbles.push(new LifeObstacle());
   }
 
-  // Кнопка запуска
-  let playButton = createButton('▶️ Play Music');
-  playButton.position(20, 20);
-  playButton.mousePressed(() => {
-    if (!state.isPlaying) {
+  // --- Экран загрузки ---
+  state.loadingScreen = true;
+  state.loadingAlpha = 1.0;
+  state.shrinePulse = 0;
+  state.shrinePulseDir = 1;
+  state.shrineAnimT = 0;
+  state.shrineButton = createButton('⛩️ Войти в храм');
+  state.shrineButton.style('font-size', '1.5rem');
+  state.shrineButton.style('padding', '0.7em 2.2em');
+  state.shrineButton.style('background', 'rgba(255,255,255,0.92)');
+  state.shrineButton.style('border', 'none');
+  state.shrineButton.style('border-radius', '1.5em');
+  state.shrineButton.style('box-shadow', '0 4px 24px 0 rgba(80,80,80,0.13)');
+  state.shrineButton.style('color', '#222');
+  state.shrineButton.position(width/2-110, height/2+90);
+  state.shrineButton.mousePressed(() => {
+    if (!state.isPlaying && state.loadingScreen) {
       userStartAudio();
       state.song.loop();
       state.isPlaying = true;
-      playButton.hide();
+      state.loadingScreen = false;
+      // Плавное исчезновение
+      state.loadingAlpha = 1.0;
+      setTimeout(() => state.shrineButton.hide(), 700);
     }
   });
 }
+
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   state.beeX = width / 2;
   state.beeY = height / 2;
   state.barWidth = width / SPECTRUM_BARS;
+  if (state.shrineButton) {
+    state.shrineButton.position(width/2-110, height/2+90);
+  }
 }
 
 function draw() {
-  if (!state.isPlaying) {
-    background(20, 25, 40);
-    fill(255);
-    textSize(24);
+  // --- Экран загрузки с анимацией ---
+  if (state.loadingScreen) {
+    let t = millis() * 0.001;
+    let pulse = 1 + 0.08 * sin(t * 2.2);
+    let alpha = state.loadingAlpha;
+    background(20, 25, 40, 255 * alpha);
+    push();
+    translate(width/2, height/2-30);
+    scale(3.2 * pulse);
+    // Анимированная тень
+    noStroke();
+    fill(0, 60 * alpha);
+    ellipse(0, 18, 32, 10 + 8 * pulse);
+    // Храм (⛩️) с пульсацией
     textAlign(CENTER, CENTER);
-    text('Click "Play Music" to start', width / 2, height / 2);
+    textSize(32);
+    fill(255, 80, 80, 255 * alpha);
+    text('⛩️', 0, 0);
+    pop();
+    // Надпись
+    push();
+    textAlign(CENTER, CENTER);
+    textSize(22);
+    fill(255, 255, 255, 220 * alpha);
+    text('Добро пожаловать в храм музыки', width/2, height/2+38);
+    pop();
+    // Кнопка уже создана в setup
+    // Плавное исчезновение
+    if (!state.loadingScreen && state.loadingAlpha > 0) {
+      state.loadingAlpha -= 0.045;
+      if (state.loadingAlpha < 0) state.loadingAlpha = 0;
+    }
     return;
   }
+
 
   let spectrum = state.fft.analyze();
   state.peakDetect.update(state.fft);
@@ -309,7 +358,6 @@ function draw() {
   }
 
   drawBee(state.smoothBeeX, state.smoothBeeY, state.prevBass);
-}
 
 
 
@@ -409,4 +457,6 @@ function drawBee(x, y, bass) {
   noStroke();
 
   pop();
+}
+// Закрывающая скобка для завершения всех блоков
 }
