@@ -16,6 +16,12 @@ let smoothBeeX = 0, smoothBeeY = 0;
 let prevWingAngle = 0, prevBodyTilt = 0, prevBodyScale = 1, prevHeadSwing = 0;
 let brassWaveAlpha = 0; // для духовых
 
+// Для темпа
+let lastPeakTime = 0;
+let peakIntervals = [];
+let tempoBPM = 120; // стартовое значение
+let tempoFactor = 1;
+
 // Для визуализации спектра
 let spectrumBars = 64;
 
@@ -80,7 +86,7 @@ function draw() {
   prevMid = lerp(prevMid, mid, 0.2);
   prevTreble = lerp(prevTreble, treble, 0.2);
 
-  // Реакция на пик
+  // Реакция на пик и расчет темпа
   if (peakDetect.isDetected) {
     background(255, 80, 80, 180); // яркая вспышка
     peakFlash = 1.0;
@@ -88,6 +94,21 @@ function draw() {
     for (let s of sparks) s.size += 2;
     // Можно добавить появление новых bubbles
     for (let i = 0; i < 3; i++) bubbles.push(new Bubble());
+
+    // --- Темп ---
+    let now = millis();
+    if (lastPeakTime > 0) {
+      let interval = now - lastPeakTime;
+      if (interval > 200 && interval < 2000) { // фильтр от случайных пиков
+        peakIntervals.push(interval);
+        if (peakIntervals.length > 8) peakIntervals.shift();
+        let avg = peakIntervals.reduce((a, b) => a + b, 0) / peakIntervals.length;
+        tempoBPM = 60000 / avg;
+        tempoBPM = constrain(tempoBPM, 60, 220);
+        tempoFactor = map(tempoBPM, 60, 220, 0.7, 1.5);
+      }
+    }
+    lastPeakTime = now;
   } else {
     background(20, 25, 40, 100);
     peakFlash = max(0, peakFlash - 0.05);
@@ -107,17 +128,17 @@ function draw() {
   }
 
   for (let s of sparks) {
-    s.update(prevMid);
+    s.update(prevMid, tempoFactor);
     s.show();
     // Постепенно возвращаем размер sparks к исходному
     s.size = lerp(s.size, s.baseSize || 5, 0.1);
   }
   for (let f of flowers) {
-    f.update(prevTreble);
+    f.update(prevTreble, tempoFactor);
     f.show(prevTreble);
   }
   for (let b of bubbles) {
-    b.update(prevBass);
+    b.update(prevBass, tempoFactor);
     b.show();
   }
   // Ограничиваем количество bubbles
@@ -161,8 +182,8 @@ class Spark {
     this.alpha = random(100, 200);
     this.speed = random(0.005, 0.02);
   }
-  update(mid) {
-    this.angle += this.speed * map(mid, 0, 255, 0.5, 2);
+  update(mid, tempoFactor = 1) {
+    this.angle += this.speed * map(mid, 0, 255, 0.5, 2) * tempoFactor;
   }
   show() {
     let x = beeX + cos(this.angle) * this.radius;
@@ -181,8 +202,9 @@ class Flower {
     this.baseSize = random(8, 15);
     this.offset = random(TWO_PI);
   }
-  update(treble) {
-    this.currentSize = this.baseSize + map(treble, 0, 255, 0, 10) * sin(frameCount * 0.1 + this.offset);
+  update(treble, tempoFactor = 1) {
+    // Пульсация зависит от темпа
+    this.currentSize = this.baseSize + map(treble, 0, 255, 0, 10) * sin(frameCount * 0.1 * tempoFactor + this.offset);
   }
   show(treble) {
     push();
@@ -207,8 +229,8 @@ class Bubble {
     this.speed = random(0.5, 2);
     this.alpha = random(50, 150);
   }
-  update(bass) {
-    this.y -= this.speed * map(bass, 0, 255, 0.5, 2);
+  update(bass, tempoFactor = 1) {
+    this.y -= this.speed * map(bass, 0, 255, 0.5, 2) * tempoFactor;
     this.size = this.baseSize + map(bass, 0, 255, 0, 5);
     if (this.y < -this.size) {
       this.y = height + this.size;
@@ -229,21 +251,24 @@ function drawBee(x, y, bass) {
   let treble = prevTreble;
   let t = frameCount / 60.0;
 
+  // Темп влияет на скорость анимаций
+  let tempo = tempoFactor;
+
   // Плавное сглаживание параметров анимации
-  let wingFreq = map(treble, 0, 255, 8, 18);
+  let wingFreq = map(treble, 0, 255, 8, 18) * tempo;
   let wingAmp = map(bass, 0, 255, 8, 22);
   let wingAngle = sin(t * wingFreq) * wingAmp;
   prevWingAngle = lerp(prevWingAngle, wingAngle, 0.18);
 
-  let bodyScale = 1 + map(mid, 0, 255, 0, 0.18) * sin(t * 2 + mid * 0.01);
+  let bodyScale = 1 + map(mid, 0, 255, 0, 0.18) * sin(t * 2 * tempo + mid * 0.01);
   prevBodyScale = lerp(prevBodyScale, bodyScale, 0.12);
-  let bodyTilt = map(bass, 0, 255, -0.18, 0.18) * sin(t * 1.5 + bass * 0.01);
+  let bodyTilt = map(bass, 0, 255, -0.18, 0.18) * sin(t * 1.5 * tempo + bass * 0.01);
   prevBodyTilt = lerp(prevBodyTilt, bodyTilt, 0.12);
 
-  let headSwing = map(treble, 0, 255, -0.2, 0.2) * sin(t * 2.5 + treble * 0.01);
+  let headSwing = map(treble, 0, 255, -0.2, 0.2) * sin(t * 2.5 * tempo + treble * 0.01);
   prevHeadSwing = lerp(prevHeadSwing, headSwing, 0.15);
 
-  let stripePulse = map(mid, 0, 255, 1, 1.25) * (1 + 0.08 * sin(t * 4 + mid * 0.02));
+  let stripePulse = map(mid, 0, 255, 1, 1.25) * (1 + 0.08 * sin(t * 4 * tempo + mid * 0.02));
 
   // Тень под пчелой (реагирует на бас)
   let shadowSize = 28 + map(bass, 0, 255, 0, 18);
@@ -292,8 +317,8 @@ function drawBee(x, y, bass) {
   stroke(0);
   strokeWeight(2);
   let antAngle = map(mid, 0, 255, 0.6, 1.2);
-  line(-5, -33, -12 - 6 * sin(t * 2), -33 - 10 * antAngle);
-  line(5, -33, 12 + 6 * sin(t * 2 + 1), -33 - 10 * antAngle);
+  line(-5, -33, -12 - 6 * sin(t * 2 * tempo), -33 - 10 * antAngle);
+  line(5, -33, 12 + 6 * sin(t * 2 * tempo + 1), -33 - 10 * antAngle);
   noStroke();
 
   pop();
