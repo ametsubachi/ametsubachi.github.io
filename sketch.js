@@ -17,7 +17,7 @@ const state = {
   peakDetect: null,
   beeX: 0,
   beeY: 0,
-  sparks: [],
+  backgroundOvals: [], // массив фоновых овалов
   flowers: [],
   bubbles: [],
   isPlaying: false,
@@ -175,8 +175,20 @@ function setup() {
     { char: '悩', color: color(70, 50, 50) }
   ];
 
+
+  // Инициализация фоновых овалов (эффект полета)
+  for (let i = 0; i < 32; i++) {
+    state.backgroundOvals.push({
+      x: random(width),
+      y: random(-height, height),
+      w: random(60, 180),
+      h: random(18, 48),
+      speed: random(4, 12),
+      alpha: random(40, 90),
+      col: color(random(180,255), random(180,220), random(220,255), random(40,90))
+    });
+  }
   for (let i = 0; i < INIT_OBJECTS; i++) {
-    state.sparks.push(new ShintoCharm());
     state.flowers.push(new Flower());
     state.bubbles.push(new LifeObstacle());
   }
@@ -242,6 +254,7 @@ function windowResized() {
   }
 }
 
+
 function draw() {
   // --- Экран загрузки с анимацией ---
   if (state.loadingScreen) {
@@ -249,6 +262,8 @@ function draw() {
     let pulse = 1 + 0.08 * sin(t * 2.2);
     let alpha = state.loadingAlpha;
     background(20, 25, 40, 255 * alpha);
+    // Фоновые овалы даже на экране загрузки
+    drawBackgroundOvals(true, alpha);
     push();
     translate(width/2, height/2-30);
     scale(3.2 * pulse);
@@ -279,6 +294,7 @@ function draw() {
   }
 
 
+
   let spectrum = state.fft.analyze();
   state.peakDetect.update(state.fft);
 
@@ -295,8 +311,6 @@ function draw() {
   if (state.peakDetect.isDetected) {
     background(255, 80, 80, 180); // яркая вспышка
     state.peakFlash = 1.0;
-    // Дополнительный эффект: временно увеличиваем размер всех sparks
-    for (let s of state.sparks) s.size += 2;
     // Добавляем новые препятствия только если не превышен лимит
     if (state.bubbles.length < MAX_BUBBLES) {
       let toAdd = min(3, MAX_BUBBLES - state.bubbles.length);
@@ -322,6 +336,9 @@ function draw() {
     state.peakFlash = max(0, state.peakFlash - PEAK_FLASH_DECAY);
   }
 
+  // --- Фоновые овалы (эффект полета) ---
+  drawBackgroundOvals(false);
+
   // Тряска от баса теперь менее выражена
   state.tremble = map(state.prevBass, 0, 255, 0, TREMBLE_MAX); // дрожание зависит от сглаженного баса
 
@@ -334,13 +351,30 @@ function draw() {
     rect(i * state.barWidth, height - h, state.barWidth * 0.8, h, 4);
   }
 
-  // Оптимизация: используем обычный for для минимизации аллокаций и ускорения
-  for (let i = 0, n = state.sparks.length; i < n; i++) {
-    let s = state.sparks[i];
-    s.update(state.prevMid, state.tempoFactor);
-    s.show();
-    s.size = lerp(s.size, s.baseSize || 5, 0.1);
+  // ...удалено: мерцающие овалы (sparks)...
+// --- Функция для фоновых овалов ---
+function drawBackgroundOvals(isLoadingScreen = false, loadingAlpha = 1.0) {
+  for (let oval of state.backgroundOvals) {
+    // Скорость зависит от темпа и баса, на экране загрузки — просто быстро
+    let speed = isLoadingScreen ? oval.speed * 1.2 : oval.speed * (1.2 + state.prevBass/180 + state.tempoFactor*0.7);
+    oval.y += speed;
+    if (oval.y - oval.h/2 > height) {
+      oval.y = -oval.h/2;
+      oval.x = random(width);
+      oval.w = random(60, 180);
+      oval.h = random(18, 48);
+      oval.speed = random(4, 12);
+      oval.alpha = random(40, 90);
+      oval.col = color(random(180,255), random(180,220), random(220,255), oval.alpha);
+    }
+    push();
+    noStroke();
+    let a = isLoadingScreen ? oval.alpha * loadingAlpha : oval.alpha;
+    fill(red(oval.col), green(oval.col), blue(oval.col), a);
+    ellipse(oval.x, oval.y, oval.w, oval.h);
+    pop();
   }
+}
   for (let i = 0, n = state.flowers.length; i < n; i++) {
     let f = state.flowers[i];
     f.update(state.prevTreble, state.tempoFactor);
