@@ -254,26 +254,44 @@ function drawBee(x, y, bass) {
   // Темп влияет на скорость анимаций
   let tempo = tempoFactor;
 
+  // --- Новые трансформации от темпа ---
+  // Мягкое масштабирование, вращение и пульсация в зависимости от темпа
+  // Чем выше tempoBPM, тем заметнее эффекты
+  let tempoNorm = map(tempoBPM, 60, 220, 0, 1); // 0..1
+  // Мягкое сглаживание для темповых эффектов
+  if (typeof drawBee.prevTempoNorm === 'undefined') drawBee.prevTempoNorm = tempoNorm;
+  drawBee.prevTempoNorm = lerp(drawBee.prevTempoNorm, tempoNorm, 0.08);
+
+  // Масштаб пчелы
+  let tempoScale = 1 + 0.18 * sin(t * 1.2 + tempo * 0.7) * drawBee.prevTempoNorm;
+  // Вращение пчелы
+  let tempoRot = 0.12 * sin(t * 0.7 + tempo * 1.1) * drawBee.prevTempoNorm;
+  // Пульсация тела
+  let tempoPulse = 1 + 0.12 * sin(t * 2.5 + tempo * 1.5) * drawBee.prevTempoNorm;
+
   // Плавное сглаживание параметров анимации
   let wingFreq = map(treble, 0, 255, 8, 18) * tempo;
   let wingAmp = map(bass, 0, 255, 8, 22);
   let wingAngle = sin(t * wingFreq) * wingAmp;
   prevWingAngle = lerp(prevWingAngle, wingAngle, 0.18);
 
-  let bodyScale = 1 + map(mid, 0, 255, 0, 0.18) * sin(t * 2 * tempo + mid * 0.01);
+  let bodyScale = (1 + map(mid, 0, 255, 0, 0.18) * sin(t * 2 * tempo + mid * 0.01)) * tempoPulse;
   prevBodyScale = lerp(prevBodyScale, bodyScale, 0.12);
-  let bodyTilt = map(bass, 0, 255, -0.18, 0.18) * sin(t * 1.5 * tempo + bass * 0.01);
+  let bodyTilt = map(bass, 0, 255, -0.18, 0.18) * sin(t * 1.5 * tempo + bass * 0.01) + tempoRot;
   prevBodyTilt = lerp(prevBodyTilt, bodyTilt, 0.12);
 
   let headSwing = map(treble, 0, 255, -0.2, 0.2) * sin(t * 2.5 * tempo + treble * 0.01);
   prevHeadSwing = lerp(prevHeadSwing, headSwing, 0.15);
 
-  let stripePulse = map(mid, 0, 255, 1, 1.25) * (1 + 0.08 * sin(t * 4 * tempo + mid * 0.02));
+  let stripePulse = map(mid, 0, 255, 1, 1.25) * (1 + 0.08 * sin(t * 4 * tempo + mid * 0.02)) * tempoPulse;
 
   // Тень под пчелой (реагирует на бас)
   let shadowSize = 28 + map(bass, 0, 255, 0, 18);
   push();
   translate(x, y);
+  // Глобальное масштабирование и вращение от темпа
+  scale(tempoScale, tempoScale);
+  rotate(tempoRot);
   fill(0, 60);
   ellipse(0, 24, shadowSize * prevBodyScale, 10 * prevBodyScale);
 
