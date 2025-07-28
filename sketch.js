@@ -1,182 +1,46 @@
-let song;
-let fft, peakDetect;
-let beeX, beeY;
 
-let sparks = [];
-let flowers = [];
-let bubbles = [];
+// Константы
+const MAX_BUBBLES = 60;
+const INIT_OBJECTS = 40;
+const SPECTRUM_BARS = 64;
+const TREMBLE_MAX = 2.5;
+const PEAK_FLASH_DECAY = 0.05;
+const TEMPO_MIN = 60;
+const TEMPO_MAX = 220;
+const PEAK_INTERVAL_MIN = 200;
+const PEAK_INTERVAL_MAX = 2000;
 
+// Глобальное состояние
+const state = {
+  song: null,
+  fft: null,
+  peakDetect: null,
+  beeX: 0,
+  beeY: 0,
+  sparks: [],
+  flowers: [],
+  bubbles: [],
+  isPlaying: false,
+  tremble: 0,
+  prevBass: 0,
+  prevMid: 0,
+  prevTreble: 0,
+  smoothBeeX: 0,
+  smoothBeeY: 0,
+  prevWingAngle: 0,
+  prevBodyTilt: 0,
+  prevBodyScale: 1,
+  prevHeadSwing: 0,
+  brassWaveAlpha: 0,
+  lastPeakTime: 0,
+  peakIntervals: [],
+  tempoBPM: 120,
+  tempoFactor: 1,
+  peakFlash: 0,
+  barWidth: 0
+};
 
-let isPlaying = false;
-let tremble = 0;
-
-// Для сглаживания аудиоданных
-let prevBass = 0, prevMid = 0, prevTreble = 0;
-let smoothBeeX = 0, smoothBeeY = 0;
-let prevWingAngle = 0, prevBodyTilt = 0, prevBodyScale = 1, prevHeadSwing = 0;
-let brassWaveAlpha = 0; // для духовых
-
-// Для темпа
-let lastPeakTime = 0;
-let peakIntervals = [];
-let tempoBPM = 120; // стартовое значение
-let tempoFactor = 1;
-
-// Для визуализации спектра
-let spectrumBars = 64;
-
-// Для эффекта всплеска на пик
-let peakFlash = 0;
-
-function preload() {
-  song = loadSound('./DELTARUNE_THE_WORLD_REVOLVING.mp3'); // локальный файл
-}
-
-function setup() {
-  createCanvas(windowWidth, windowHeight);
-  fft = new p5.FFT();
-  peakDetect = new p5.PeakDetect();
-  beeX = width / 2;
-  beeY = height / 2;
-
-  for (let i = 0; i < 40; i++) {
-    sparks.push(new ShintoCharm());
-    flowers.push(new Flower());
-    bubbles.push(new LifeObstacle());
-  }
-
-  // Кнопка запуска
-  let playButton = createButton('▶️ Play Music');
-  playButton.position(20, 20);
-  playButton.mousePressed(() => {
-    if (!isPlaying) {
-      userStartAudio();
-      song.loop();
-      isPlaying = true;
-      playButton.hide();
-    }
-  });
-}
-
-function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-  beeX = width / 2;
-  beeY = height / 2;
-}
-
-function draw() {
-  if (!isPlaying) {
-    background(20, 25, 40);
-    fill(255);
-    textSize(24);
-    textAlign(CENTER, CENTER);
-    text('Click "Play Music" to start', width / 2, height / 2);
-    return;
-  }
-
-  let spectrum = fft.analyze();
-  peakDetect.update(fft);
-
-  let bass = fft.getEnergy("bass");
-  let mid = fft.getEnergy("mid");
-  let treble = fft.getEnergy("treble");
-
-  // Сглаживание аудиоданных
-  prevBass = lerp(prevBass, bass, 0.2);
-  prevMid = lerp(prevMid, mid, 0.2);
-  prevTreble = lerp(prevTreble, treble, 0.2);
-
-  // Реакция на пик и расчет темпа
-  if (peakDetect.isDetected) {
-    background(255, 80, 80, 180); // яркая вспышка
-    peakFlash = 1.0;
-    // Дополнительный эффект: временно увеличиваем размер всех sparks
-    for (let s of sparks) s.size += 2;
-    // Можно добавить появление новых препятствий
-    for (let i = 0; i < 3; i++) bubbles.push(new LifeObstacle());
-
-    // --- Темп ---
-    let now = millis();
-    if (lastPeakTime > 0) {
-      let interval = now - lastPeakTime;
-      if (interval > 200 && interval < 2000) { // фильтр от случайных пиков
-        peakIntervals.push(interval);
-        if (peakIntervals.length > 8) peakIntervals.shift();
-        let avg = peakIntervals.reduce((a, b) => a + b, 0) / peakIntervals.length;
-        tempoBPM = 60000 / avg;
-        tempoBPM = constrain(tempoBPM, 60, 220);
-        tempoFactor = map(tempoBPM, 60, 220, 0.7, 1.5);
-      }
-    }
-    lastPeakTime = now;
-  } else {
-    background(20, 25, 40, 100);
-    peakFlash = max(0, peakFlash - 0.05);
-  }
-
-  // Тряска от баса теперь менее выражена
-  tremble = map(prevBass, 0, 255, 0, 2.5); // дрожание зависит от сглаженного баса
-
-  // Визуализация спектра
-  noStroke();
-  let barWidth = width / spectrumBars;
-  for (let i = 0; i < spectrumBars; i++) {
-    let amp = spectrum[floor(map(i, 0, spectrumBars, 0, spectrum.length))];
-    let h = map(amp, 0, 255, 0, height * 0.25) * (0.7 + 0.3 * peakFlash);
-    fill(100 + i * 2, 180, 255, 80 + 120 * peakFlash);
-    rect(i * barWidth, height - h, barWidth * 0.8, h, 4);
-  }
-
-  // Оптимизация: используем обычный for для минимизации аллокаций и ускорения
-  for (let i = 0, n = sparks.length; i < n; i++) {
-    let s = sparks[i];
-    s.update(prevMid, tempoFactor);
-    s.show();
-    s.size = lerp(s.size, s.baseSize || 5, 0.1);
-  }
-  for (let i = 0, n = flowers.length; i < n; i++) {
-    let f = flowers[i];
-    f.update(prevTreble, tempoFactor);
-    f.show(prevTreble);
-  }
-  for (let i = 0, n = bubbles.length; i < n; i++) {
-    let b = bubbles[i];
-    b.update(prevBass, tempoFactor);
-    b.show();
-  }
-  // Ограничиваем количество препятствий
-  if (bubbles.length > 60) bubbles.splice(0, bubbles.length - 60);
-
-  // Плавное движение пчелы
-  let targetX = beeX + random(-tremble, tremble);
-  let targetY = beeY + random(-tremble, tremble);
-  smoothBeeX = lerp(smoothBeeX || targetX, targetX, 0.15);
-  smoothBeeY = lerp(smoothBeeY || targetY, targetY, 0.15);
-
-  // Если духовые (treble) сильные — волны вокруг пчелы
-  if (prevTreble > 180) {
-    brassWaveAlpha = lerp(brassWaveAlpha, 1, 0.1);
-  } else {
-    brassWaveAlpha = lerp(brassWaveAlpha, 0, 0.05);
-  }
-  if (brassWaveAlpha > 0.01) {
-    push();
-    translate(smoothBeeX, smoothBeeY);
-    noFill();
-    stroke(255, 220, 80, 120 * brassWaveAlpha);
-    strokeWeight(3 + 2 * brassWaveAlpha);
-    let waveR = 38 + 18 * sin(frameCount * 0.12);
-    ellipse(0, 0, waveR + prevTreble * 0.5, waveR + prevTreble * 0.5);
-    stroke(255, 180, 80, 80 * brassWaveAlpha);
-    ellipse(0, 0, waveR * 1.5 + prevTreble * 0.3, waveR * 1.5 + prevTreble * 0.3);
-    pop();
-  }
-
-  drawBee(smoothBeeX, smoothBeeY, prevBass);
-}
-
-// Класс для искр
-// Класс для синтоистских иероглифов-талисманов
+// --- Классы объявлены до setup ---
 class ShintoCharm {
   constructor() {
     this.angle = random(TWO_PI);
@@ -185,49 +49,38 @@ class ShintoCharm {
     this.baseSize = this.size;
     this.alpha = random(120, 200);
     this.speed = random(0.005, 0.02);
-    // Список иероглифов-талисманов (значения: гармония, удача, защита, божество, связь, чистота, очищение, дракон, благословение, сердце)
-    this.charmList = ['和', '福', '守', '神', '縁', '清', '祓', '龍', '祝', '心'];
-    this.char = random(this.charmList);
-    // Яркие цвета для сияния
-    this.baseColor = random([
-      color(255, 255, 120), // ярко-желтый
-      color(255, 220, 80),
-      color(255, 180, 80),
-      color(200, 240, 255), // светло-голубой
-      color(255, 120, 120),
-      color(255, 255, 255) // белый
-    ]);
+    this.char = random(ShintoCharm.charmList);
+    this.baseColor = random(ShintoCharm.baseColors);
     this.color = this.baseColor;
     this.twinkle = random(0.5, 1.2);
   }
   update(mid, tempoFactor = 1) {
     this.angle += this.speed * map(mid, 0, 255, 0.5, 2) * tempoFactor;
-    // Пульсация размера
     this.size = this.baseSize + 6 * sin(frameCount * 0.08 + this.angle);
   }
-    show() {
-        let x = beeX + cos(this.angle) * this.radius;
-        let y = beeY + sin(this.angle) * this.radius;
-        push();
-        translate(x, y);
-        noStroke();
-        // Эффект сияния: пульсация альфы и легкое свечение
-        let glowAlpha = this.alpha + 80 * abs(sin(frameCount * 0.12 + this.angle * 2));
-        let glowSize = this.size * 1.25 + 4 * abs(sin(frameCount * 0.1 + this.angle));
-        drawingContext.shadowBlur = 18;
-        drawingContext.shadowColor = color(255, 255, 180, 180);
-        fill(this.baseColor.levels[0], this.baseColor.levels[1], this.baseColor.levels[2], glowAlpha);
-        text(this.char, 0, 0);
-        drawingContext.shadowBlur = 0;
-        fill(this.baseColor.levels[0], this.baseColor.levels[1], this.baseColor.levels[2], this.alpha + 40 * sin(frameCount * 0.1 + this.angle * 2));
-        textAlign(CENTER, CENTER);
-        textSize(this.size);
-        text(this.char, 0, 0);
-        pop();
+  show() {
+    let x = state.beeX + cos(this.angle) * this.radius;
+    let y = state.beeY + sin(this.angle) * this.radius;
+    push();
+    translate(x, y);
+    noStroke();
+    let glowAlpha = this.alpha + 80 * abs(sin(frameCount * 0.12 + this.angle * 2));
+    let glowSize = this.size * 1.25 + 4 * abs(sin(frameCount * 0.1 + this.angle));
+    drawingContext.shadowBlur = 18;
+    drawingContext.shadowColor = color(255, 255, 180, 180);
+    fill(this.baseColor.levels[0], this.baseColor.levels[1], this.baseColor.levels[2], glowAlpha);
+    text(this.char, 0, 0);
+    drawingContext.shadowBlur = 0;
+    fill(this.baseColor.levels[0], this.baseColor.levels[1], this.baseColor.levels[2], this.alpha + 40 * sin(frameCount * 0.1 + this.angle * 2));
+    textAlign(CENTER, CENTER);
+    textSize(this.size);
+    text(this.char, 0, 0);
+    pop();
   }
 }
+ShintoCharm.charmList = null; // инициализируем в setup
+ShintoCharm.baseColors = null;
 
-// Класс для цветов
 class Flower {
   constructor() {
     this.x = random(width);
@@ -236,7 +89,6 @@ class Flower {
     this.offset = random(TWO_PI);
   }
   update(treble, tempoFactor = 1) {
-    // Пульсация зависит от темпа
     this.currentSize = this.baseSize + map(treble, 0, 255, 0, 10) * sin(frameCount * 0.1 * tempoFactor + this.offset);
   }
   show(treble) {
@@ -252,8 +104,6 @@ class Flower {
   }
 }
 
-// Класс для пузырьков
-// Класс для "жизненных препятствий" в виде японских иероглифов
 class LifeObstacle {
   constructor() {
     this.x = random(width);
@@ -262,20 +112,7 @@ class LifeObstacle {
     this.size = this.baseSize;
     this.speed = random(0.5, 2);
     this.alpha = random(120, 200);
-    // Список препятствий: болезнь, страх, сомнение, боль, одиночество, неудача, зависть, гнев, усталость, тревога
-    this.obstacleList = [
-      { char: '病', color: color(60, 30, 30) }, // болезнь
-      { char: '恐', color: color(30, 30, 60) }, // страх
-      { char: '疑', color: color(50, 50, 50) }, // сомнение
-      { char: '痛', color: color(80, 30, 30) }, // боль
-      { char: '孤', color: color(40, 60, 80) }, // одиночество
-      { char: '敗', color: color(50, 30, 60) }, // неудача
-      { char: '嫉', color: color(30, 60, 40) }, // зависть
-      { char: '怒', color: color(80, 50, 20) }, // гнев
-      { char: '疲', color: color(60, 60, 80) }, // усталость
-      { char: '悩', color: color(70, 50, 50) } // тревога
-    ];
-    let chosen = random(this.obstacleList);
+    let chosen = random(LifeObstacle.obstacleList);
     this.char = chosen.char;
     this.color = chosen.color;
   }
@@ -285,92 +122,253 @@ class LifeObstacle {
     if (this.y > height + this.size) {
       this.y = random(-100, -20);
       this.x = random(width);
-      // Новый символ и цвет при "респауне"
-      let chosen = random(this.obstacleList);
+      let chosen = random(LifeObstacle.obstacleList);
       this.char = chosen.char;
       this.color = chosen.color;
     }
   }
-    show() {
-        noStroke();
-        fill(this.color.levels[0], this.color.levels[1], this.color.levels[2], this.alpha);
-        textAlign(CENTER, CENTER);
-        textSize(this.size);
-        text(this.char, this.x, this.y);
+  show() {
+    noStroke();
+    fill(this.color.levels[0], this.color.levels[1], this.color.levels[2], this.alpha);
+    textAlign(CENTER, CENTER);
+    textSize(this.size);
+    text(this.char, this.x, this.y);
   }
 }
+LifeObstacle.obstacleList = null; // инициализируем в setup
+
+function preload() {
+  state.song = loadSound('./DELTARUNE_THE_WORLD_REVOLVING.mp3'); // локальный файл
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  state.fft = new p5.FFT();
+  state.peakDetect = new p5.PeakDetect();
+  state.beeX = width / 2;
+  state.beeY = height / 2;
+  state.barWidth = width / SPECTRUM_BARS;
+
+  // Инициализация статических списков после старта p5
+  ShintoCharm.charmList = ['和', '福', '守', '神', '縁', '清', '祓', '龍', '祝', '心'];
+  ShintoCharm.baseColors = [
+    color(255, 255, 120),
+    color(255, 220, 80),
+    color(255, 180, 80),
+    color(200, 240, 255),
+    color(255, 120, 120),
+    color(255, 255, 255)
+  ];
+  LifeObstacle.obstacleList = [
+    { char: '病', color: color(60, 30, 30) },
+    { char: '恐', color: color(30, 30, 60) },
+    { char: '疑', color: color(50, 50, 50) },
+    { char: '痛', color: color(80, 30, 30) },
+    { char: '孤', color: color(40, 60, 80) },
+    { char: '敗', color: color(50, 30, 60) },
+    { char: '嫉', color: color(30, 60, 40) },
+    { char: '怒', color: color(80, 50, 20) },
+    { char: '疲', color: color(60, 60, 80) },
+    { char: '悩', color: color(70, 50, 50) }
+  ];
+
+  for (let i = 0; i < INIT_OBJECTS; i++) {
+    state.sparks.push(new ShintoCharm());
+    state.flowers.push(new Flower());
+    state.bubbles.push(new LifeObstacle());
+  }
+
+  // Кнопка запуска
+  let playButton = createButton('▶️ Play Music');
+  playButton.position(20, 20);
+  playButton.mousePressed(() => {
+    if (!state.isPlaying) {
+      userStartAudio();
+      state.song.loop();
+      state.isPlaying = true;
+      playButton.hide();
+    }
+  });
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  state.beeX = width / 2;
+  state.beeY = height / 2;
+  state.barWidth = width / SPECTRUM_BARS;
+}
+
+function draw() {
+  if (!state.isPlaying) {
+    background(20, 25, 40);
+    fill(255);
+    textSize(24);
+    textAlign(CENTER, CENTER);
+    text('Click "Play Music" to start', width / 2, height / 2);
+    return;
+  }
+
+  let spectrum = state.fft.analyze();
+  state.peakDetect.update(state.fft);
+
+  let bass = state.fft.getEnergy("bass");
+  let mid = state.fft.getEnergy("mid");
+  let treble = state.fft.getEnergy("treble");
+
+  // Сглаживание аудиоданных
+  state.prevBass = lerp(state.prevBass, bass, 0.2);
+  state.prevMid = lerp(state.prevMid, mid, 0.2);
+  state.prevTreble = lerp(state.prevTreble, treble, 0.2);
+
+  // Реакция на пик и расчет темпа
+  if (state.peakDetect.isDetected) {
+    background(255, 80, 80, 180); // яркая вспышка
+    state.peakFlash = 1.0;
+    // Дополнительный эффект: временно увеличиваем размер всех sparks
+    for (let s of state.sparks) s.size += 2;
+    // Добавляем новые препятствия только если не превышен лимит
+    if (state.bubbles.length < MAX_BUBBLES) {
+      let toAdd = min(3, MAX_BUBBLES - state.bubbles.length);
+      for (let i = 0; i < toAdd; i++) state.bubbles.push(new LifeObstacle());
+    }
+
+    // --- Темп ---
+    let now = millis();
+    if (state.lastPeakTime > 0) {
+      let interval = now - state.lastPeakTime;
+      if (interval > PEAK_INTERVAL_MIN && interval < PEAK_INTERVAL_MAX) { // фильтр от случайных пиков
+        state.peakIntervals.push(interval);
+        if (state.peakIntervals.length > 8) state.peakIntervals.shift();
+        let avg = state.peakIntervals.reduce((a, b) => a + b, 0) / state.peakIntervals.length;
+        state.tempoBPM = 60000 / avg;
+        state.tempoBPM = constrain(state.tempoBPM, TEMPO_MIN, TEMPO_MAX);
+        state.tempoFactor = map(state.tempoBPM, TEMPO_MIN, TEMPO_MAX, 0.7, 1.5);
+      }
+    }
+    state.lastPeakTime = now;
+  } else {
+    background(20, 25, 40, 100);
+    state.peakFlash = max(0, state.peakFlash - PEAK_FLASH_DECAY);
+  }
+
+  // Тряска от баса теперь менее выражена
+  state.tremble = map(state.prevBass, 0, 255, 0, TREMBLE_MAX); // дрожание зависит от сглаженного баса
+
+  // Визуализация спектра
+  noStroke();
+  for (let i = 0; i < SPECTRUM_BARS; i++) {
+    let amplitude = spectrum[floor(map(i, 0, SPECTRUM_BARS, 0, spectrum.length))];
+    let h = map(amplitude, 0, 255, 0, height * 0.25) * (0.7 + 0.3 * state.peakFlash);
+    fill(100 + i * 2, 180, 255, 80 + 120 * state.peakFlash);
+    rect(i * state.barWidth, height - h, state.barWidth * 0.8, h, 4);
+  }
+
+  // Оптимизация: используем обычный for для минимизации аллокаций и ускорения
+  for (let i = 0, n = state.sparks.length; i < n; i++) {
+    let s = state.sparks[i];
+    s.update(state.prevMid, state.tempoFactor);
+    s.show();
+    s.size = lerp(s.size, s.baseSize || 5, 0.1);
+  }
+  for (let i = 0, n = state.flowers.length; i < n; i++) {
+    let f = state.flowers[i];
+    f.update(state.prevTreble, state.tempoFactor);
+    f.show(state.prevTreble);
+  }
+  for (let i = 0, n = state.bubbles.length; i < n; i++) {
+    let b = state.bubbles[i];
+    b.update(state.prevBass, state.tempoFactor);
+    b.show();
+  }
+  // Ограничиваем количество препятствий
+  if (state.bubbles.length > MAX_BUBBLES) state.bubbles.splice(0, state.bubbles.length - MAX_BUBBLES);
+
+  // Плавное движение пчелы
+  let targetX = state.beeX + random(-state.tremble, state.tremble);
+  let targetY = state.beeY + random(-state.tremble, state.tremble);
+  state.smoothBeeX = lerp(state.smoothBeeX || targetX, targetX, 0.15);
+  state.smoothBeeY = lerp(state.smoothBeeY || targetY, targetY, 0.15);
+
+  // Если духовые (treble) сильные — волны вокруг пчелы
+  if (state.prevTreble > 180) {
+    state.brassWaveAlpha = lerp(state.brassWaveAlpha, 1, 0.1);
+  } else {
+    state.brassWaveAlpha = lerp(state.brassWaveAlpha, 0, 0.05);
+  }
+  if (state.brassWaveAlpha > 0.01) {
+    push();
+    translate(state.smoothBeeX, state.smoothBeeY);
+    noFill();
+    stroke(255, 220, 80, 120 * state.brassWaveAlpha);
+    strokeWeight(3 + 2 * state.brassWaveAlpha);
+    let waveR = 38 + 18 * sin(frameCount * 0.12);
+    ellipse(0, 0, waveR + state.prevTreble * 0.5, waveR + state.prevTreble * 0.5);
+    stroke(255, 180, 80, 80 * state.brassWaveAlpha);
+    ellipse(0, 0, waveR * 1.5 + state.prevTreble * 0.3, waveR * 1.5 + state.prevTreble * 0.3);
+    pop();
+  }
+
+  drawBee(state.smoothBeeX, state.smoothBeeY, state.prevBass);
+}
+
+
 
 // Пчела
 function drawBee(x, y, bass) {
   // Используем сглаженные значения для всех диапазонов
-  let mid = prevMid;
-  let treble = prevTreble;
+  let mid = state.prevMid;
+  let treble = state.prevTreble;
   let t = frameCount / 60.0;
 
   // Темп влияет на скорость анимаций
-  let tempo = tempoFactor;
-
+  let tempo = state.tempoFactor;
 
   // --- Новые трансформации от темпа ---
-  // Мягкое масштабирование, вращение и пульсация в зависимости от темпа
-  // Чем выше tempoBPM, тем заметнее эффекты
-  let tempoNorm = map(tempoBPM, 60, 220, 0, 1); // 0..1
-  // Мягкое сглаживание для темповых эффектов
+  let tempoNorm = map(state.tempoBPM, TEMPO_MIN, TEMPO_MAX, 0, 1); // 0..1
   if (typeof drawBee.prevTempoNorm === 'undefined') drawBee.prevTempoNorm = tempoNorm;
   drawBee.prevTempoNorm = lerp(drawBee.prevTempoNorm, tempoNorm, 0.08);
 
-  // Масштаб пчелы
   let tempoScale = 1 + 0.18 * sin(t * 1.2 + tempo * 0.7) * drawBee.prevTempoNorm;
-  // Вращение пчелы
   let tempoRot = 0.12 * sin(t * 0.7 + tempo * 1.1) * drawBee.prevTempoNorm;
-  // Пульсация тела
   let tempoPulse = 1 + 0.12 * sin(t * 2.5 + tempo * 1.5) * drawBee.prevTempoNorm;
 
   // --- Движения пчелы ---
-  // Подпрыгивания (вертикальные) от баса
   let jump = map(bass, 0, 255, 0, 18) * sin(t * 2.1 + bass * 0.01);
-  // Покачивания влево-вправо от mid
   let sway = map(mid, 0, 255, 0, 12) * sin(t * 1.3 + mid * 0.02);
-  // Мелкая вибрация от treble
   let vib = map(treble, 0, 255, 0, 4) * sin(t * 8.5 + treble * 0.05);
-  // Дополнительное движение от темпа (пульсация вверх-вниз)
   let tempoMove = 10 * drawBee.prevTempoNorm * sin(t * 1.1 + tempo * 0.5);
 
-  // Итоговые смещения
   let moveX = sway + vib;
   let moveY = jump + tempoMove;
 
-  // Плавное сглаживание параметров анимации
   let wingFreq = map(treble, 0, 255, 8, 18) * tempo;
   let wingAmp = map(bass, 0, 255, 8, 22);
   let wingAngle = sin(t * wingFreq) * wingAmp;
-  prevWingAngle = lerp(prevWingAngle, wingAngle, 0.18);
+  state.prevWingAngle = lerp(state.prevWingAngle, wingAngle, 0.18);
 
   let bodyScale = (1 + map(mid, 0, 255, 0, 0.18) * sin(t * 2 * tempo + mid * 0.01)) * tempoPulse;
-  prevBodyScale = lerp(prevBodyScale, bodyScale, 0.12);
+  state.prevBodyScale = lerp(state.prevBodyScale, bodyScale, 0.12);
   let bodyTilt = map(bass, 0, 255, -0.18, 0.18) * sin(t * 1.5 * tempo + bass * 0.01) + tempoRot;
-  prevBodyTilt = lerp(prevBodyTilt, bodyTilt, 0.12);
+  state.prevBodyTilt = lerp(state.prevBodyTilt, bodyTilt, 0.12);
 
   let headSwing = map(treble, 0, 255, -0.2, 0.2) * sin(t * 2.5 * tempo + treble * 0.01);
-  prevHeadSwing = lerp(prevHeadSwing, headSwing, 0.15);
+  state.prevHeadSwing = lerp(state.prevHeadSwing, headSwing, 0.15);
 
   let stripePulse = map(mid, 0, 255, 1, 1.25) * (1 + 0.08 * sin(t * 4 * tempo + mid * 0.02)) * tempoPulse;
 
   // Тень под пчелой (реагирует на бас)
   let shadowSize = 28 + map(bass, 0, 255, 0, 18);
   push();
-  // Добавляем движения к позиции пчелы
   translate(x + moveX, y + moveY);
-  // Глобальное масштабирование и вращение от темпа
   scale(tempoScale, tempoScale);
   rotate(tempoRot);
   fill(0, 60);
-  ellipse(0, 24, shadowSize * prevBodyScale, 10 * prevBodyScale);
+  ellipse(0, 24, shadowSize * state.prevBodyScale, 10 * state.prevBodyScale);
 
   // Тело
   push();
-  rotate(prevBodyTilt);
-  scale(prevBodyScale, 1);
+  rotate(state.prevBodyTilt);
+  scale(state.prevBodyScale, 1);
   fill(255, 204, 0);
   rect(-12, -20, 24, 40, 6);
 
@@ -383,20 +381,19 @@ function drawBee(x, y, bass) {
   // Крылья
   fill(180, 210, 255, 180 + 40 * abs(sin(t * wingFreq)));
   push();
-  rotate(-0.18 + prevWingAngle * 0.01);
-  ellipse(-18 - abs(prevWingAngle), -15, 30 + abs(prevWingAngle) * 0.5, 15 + abs(prevWingAngle) * 0.2);
+  rotate(-0.18 + state.prevWingAngle * 0.01);
+  ellipse(-18 - abs(state.prevWingAngle), -15, 30 + abs(state.prevWingAngle) * 0.5, 15 + abs(state.prevWingAngle) * 0.2);
   pop();
   push();
-  rotate(0.18 - prevWingAngle * 0.01);
-  ellipse(18 + abs(prevWingAngle), -15, 30 + abs(prevWingAngle) * 0.5, 15 + abs(prevWingAngle) * 0.2);
+  rotate(0.18 - state.prevWingAngle * 0.01);
+  ellipse(18 + abs(state.prevWingAngle), -15, 30 + abs(state.prevWingAngle) * 0.5, 15 + abs(state.prevWingAngle) * 0.2);
   pop();
 
   // Голова
   push();
-  rotate(prevHeadSwing);
+  rotate(state.prevHeadSwing);
   fill(0);
   ellipse(0, -25, 18, 18);
-  // Глаза (реагируют на treble)
   fill(255);
   let eyeOffset = map(treble, 0, 255, 2, 5);
   ellipse(-4, -27, eyeOffset, eyeOffset);
