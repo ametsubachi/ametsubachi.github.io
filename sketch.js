@@ -42,7 +42,7 @@ function setup() {
   for (let i = 0; i < 40; i++) {
     sparks.push(new ShintoCharm());
     flowers.push(new Flower());
-    bubbles.push(new Bubble());
+    bubbles.push(new LifeObstacle());
   }
 
   // Кнопка запуска
@@ -92,8 +92,8 @@ function draw() {
     peakFlash = 1.0;
     // Дополнительный эффект: временно увеличиваем размер всех sparks
     for (let s of sparks) s.size += 2;
-    // Можно добавить появление новых bubbles
-    for (let i = 0; i < 3; i++) bubbles.push(new Bubble());
+    // Можно добавить появление новых препятствий
+    for (let i = 0; i < 3; i++) bubbles.push(new LifeObstacle());
 
     // --- Темп ---
     let now = millis();
@@ -141,7 +141,7 @@ function draw() {
     b.update(prevBass, tempoFactor);
     b.show();
   }
-  // Ограничиваем количество bubbles
+  // Ограничиваем количество препятствий
   if (bubbles.length > 60) bubbles.splice(0, bubbles.length - 60);
 
   // Плавное движение пчелы
@@ -233,27 +233,50 @@ class Flower {
 }
 
 // Класс для пузырьков
-class Bubble {
+// Класс для "жизненных препятствий" в виде японских иероглифов
+class LifeObstacle {
   constructor() {
     this.x = random(width);
-    this.y = random(height, height + 100);
-    this.baseSize = random(10, 20);
+    this.y = random(-100, -20);
+    this.baseSize = random(22, 36);
     this.size = this.baseSize;
     this.speed = random(0.5, 2);
-    this.alpha = random(50, 150);
+    this.alpha = random(120, 200);
+    // Список препятствий: болезнь, страх, сомнение, боль, одиночество, неудача, зависть, гнев, усталость, тревога
+    this.obstacleList = [
+      { char: '病', color: color(180, 60, 60) }, // болезнь
+      { char: '恐', color: color(80, 80, 180) }, // страх
+      { char: '疑', color: color(120, 120, 120) }, // сомнение
+      { char: '痛', color: color(200, 80, 80) }, // боль
+      { char: '孤', color: color(80, 120, 200) }, // одиночество
+      { char: '敗', color: color(120, 80, 180) }, // неудача
+      { char: '嫉', color: color(80, 180, 120) }, // зависть
+      { char: '怒', color: color(200, 120, 60) }, // гнев
+      { char: '疲', color: color(120, 120, 200) }, // усталость
+      { char: '悩', color: color(180, 120, 120) } // тревога
+    ];
+    let chosen = random(this.obstacleList);
+    this.char = chosen.char;
+    this.color = chosen.color;
   }
   update(bass, tempoFactor = 1) {
     this.y += this.speed * map(bass, 0, 255, 0.5, 2) * tempoFactor;
-    this.size = this.baseSize + map(bass, 0, 255, 0, 5);
+    this.size = this.baseSize + map(bass, 0, 255, 0, 8);
     if (this.y > height + this.size) {
-      this.y = -this.size;
+      this.y = random(-100, -20);
       this.x = random(width);
+      // Новый символ и цвет при "респауне"
+      let chosen = random(this.obstacleList);
+      this.char = chosen.char;
+      this.color = chosen.color;
     }
   }
   show() {
     noStroke();
-    fill(200, 220, 255, this.alpha);
-    ellipse(this.x, this.y, this.size);
+    fill(this.color.levels[0], this.color.levels[1], this.color.levels[2], this.alpha);
+    textAlign(CENTER, CENTER);
+    textSize(this.size);
+    text(this.char, this.x, this.y);
   }
 }
 
