@@ -18,6 +18,7 @@ const state = {
   beeX: 0,
   beeY: 0,
   backgroundOvals: [], // массив фоновых овалов
+  charms: [], // талисманы вокруг пчелы
   flowers: [],
   bubbles: [],
   isPlaying: false,
@@ -188,6 +189,10 @@ function setup() {
       col: color(random(180,255), random(180,220), random(220,255), random(40,90))
     });
   }
+  // Талисманы вокруг пчелы (ShintoCharm)
+  for (let i = 0; i < 18; i++) {
+    state.charms.push(new ShintoCharm());
+  }
   for (let i = 0; i < INIT_OBJECTS; i++) {
     state.flowers.push(new Flower());
     state.bubbles.push(new LifeObstacle());
@@ -264,6 +269,18 @@ function draw() {
     background(20, 25, 40, 255 * alpha);
     // Фоновые овалы даже на экране загрузки
     drawBackgroundOvals(true, alpha);
+    // Талисманы вокруг центра (на экране загрузки)
+    for (let i = 0, n = state.charms.length; i < n; i++) {
+      let c = state.charms[i];
+      c.update(128, 1); // статично
+      // Временно центрируем вокруг центра экрана
+      let oldBeeX = state.beeX, oldBeeY = state.beeY;
+      state.beeX = width/2;
+      state.beeY = height/2-30;
+      c.show();
+      state.beeX = oldBeeX;
+      state.beeY = oldBeeY;
+    }
     push();
     translate(width/2, height/2-30);
     scale(3.2 * pulse);
@@ -338,6 +355,13 @@ function draw() {
 
   // --- Фоновые овалы (эффект полета) ---
   drawBackgroundOvals(false);
+
+  // --- Талисманы вокруг пчелы ---
+  for (let i = 0, n = state.charms.length; i < n; i++) {
+    let c = state.charms[i];
+    c.update(state.prevMid, state.tempoFactor);
+    c.show();
+  }
 
   // Тряска от баса теперь менее выражена
   state.tremble = map(state.prevBass, 0, 255, 0, TREMBLE_MAX); // дрожание зависит от сглаженного баса
