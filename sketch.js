@@ -187,7 +187,7 @@ function setup() {
   state.shrinePulse = 0;
   state.shrinePulseDir = 1;
   state.shrineAnimT = 0;
-  state.shrineButton = createButton('⛩️ Войти в храм');
+  state.shrineButton = createButton('⛩️ 神社に入る');
   state.shrineButton.style('font-size', '1.5rem');
   state.shrineButton.style('padding', '0.7em 2.2em');
   state.shrineButton.style('background', 'rgba(255,255,255,0.92)');
@@ -195,16 +195,35 @@ function setup() {
   state.shrineButton.style('border-radius', '1.5em');
   state.shrineButton.style('box-shadow', '0 4px 24px 0 rgba(80,80,80,0.13)');
   state.shrineButton.style('color', '#222');
-  state.shrineButton.position(width/2-110, height/2+90);
+  state.shrineButton.style('transition', 'transform 0.22s cubic-bezier(.4,1.4,.6,1), background 0.18s, box-shadow 0.18s');
+  state.shrineButton.style('cursor', 'pointer');
+  // Добавляем анимацию при наведении через JS (для совместимости)
+  state.shrineButton.mouseOver(() => {
+    state.shrineButton.style('transform', 'scale(1.12)');
+    state.shrineButton.style('background', 'rgba(255,255,255,1)');
+    state.shrineButton.style('box-shadow', '0 8px 32px 0 rgba(255,80,80,0.18)');
+    state.shrineButton.style('color', '#b00');
+  });
+  state.shrineButton.mouseOut(() => {
+    state.shrineButton.style('transform', 'scale(1)');
+    state.shrineButton.style('background', 'rgba(255,255,255,0.92)');
+    state.shrineButton.style('box-shadow', '0 4px 24px 0 rgba(80,80,80,0.13)');
+    state.shrineButton.style('color', '#222');
+  });
+  // Центрируем кнопку по центру экрана
+  state.shrineButton.position(
+    width/2 - state.shrineButton.size().width/2,
+    height/2 + 70
+  );
   state.shrineButton.mousePressed(() => {
     if (!state.isPlaying && state.loadingScreen) {
       userStartAudio();
       state.song.loop();
       state.isPlaying = true;
       state.loadingScreen = false;
-      // Плавное исчезновение
+      // Кнопка исчезает сразу
       state.loadingAlpha = 1.0;
-      setTimeout(() => state.shrineButton.hide(), 700);
+      state.shrineButton.hide();
     }
   });
 }
@@ -216,7 +235,10 @@ function windowResized() {
   state.beeY = height / 2;
   state.barWidth = width / SPECTRUM_BARS;
   if (state.shrineButton) {
-    state.shrineButton.position(width/2-110, height/2+90);
+    state.shrineButton.position(
+      width/2 - state.shrineButton.size().width/2,
+      height/2 + 70
+    );
   }
 }
 
@@ -240,12 +262,12 @@ function draw() {
     fill(255, 80, 80, 255 * alpha);
     text('⛩️', 0, 0);
     pop();
-    // Надпись
+    // Надпись (японский)
     push();
     textAlign(CENTER, CENTER);
     textSize(22);
     fill(255, 255, 255, 220 * alpha);
-    text('Добро пожаловать в храм музыки', width/2, height/2+38);
+    text('音楽の神社へようこそ', width/2, height/2+38); // "Добро пожаловать в храм музыки" на японском
     pop();
     // Кнопка уже создана в setup
     // Плавное исчезновение
