@@ -185,7 +185,16 @@ class ShintoCharm {
     // Список иероглифов-талисманов (значения: гармония, удача, защита, божество, связь, чистота, очищение, дракон, благословение, сердце)
     this.charmList = ['和', '福', '守', '神', '縁', '清', '祓', '龍', '祝', '心'];
     this.char = random(this.charmList);
-    this.color = color(random([color(255, 220, 80), color(255, 180, 80), color(200, 220, 255), color(255, 120, 120)]));
+    // Яркие цвета для сияния
+    this.baseColor = random([
+      color(255, 255, 120), // ярко-желтый
+      color(255, 220, 80),
+      color(255, 180, 80),
+      color(200, 240, 255), // светло-голубой
+      color(255, 120, 120),
+      color(255, 255, 255) // белый
+    ]);
+    this.color = this.baseColor;
     this.twinkle = random(0.5, 1.2);
   }
   update(mid, tempoFactor = 1) {
@@ -199,7 +208,15 @@ class ShintoCharm {
     push();
     translate(x, y);
     noStroke();
-    fill(this.color.levels[0], this.color.levels[1], this.color.levels[2], this.alpha + 40 * sin(frameCount * 0.1 + this.angle * 2));
+    // Эффект сияния: пульсация альфы и легкое свечение
+    let glowAlpha = this.alpha + 80 * abs(sin(frameCount * 0.12 + this.angle * 2));
+    let glowSize = this.size * 1.25 + 4 * abs(sin(frameCount * 0.1 + this.angle));
+    drawingContext.shadowBlur = 18;
+    drawingContext.shadowColor = color(255, 255, 180, 180);
+    fill(this.baseColor.levels[0], this.baseColor.levels[1], this.baseColor.levels[2], glowAlpha);
+    text(this.char, 0, 0);
+    drawingContext.shadowBlur = 0;
+    fill(this.baseColor.levels[0], this.baseColor.levels[1], this.baseColor.levels[2], this.alpha + 40 * sin(frameCount * 0.1 + this.angle * 2));
     textAlign(CENTER, CENTER);
     textSize(this.size);
     text(this.char, 0, 0);
@@ -244,16 +261,16 @@ class LifeObstacle {
     this.alpha = random(120, 200);
     // Список препятствий: болезнь, страх, сомнение, боль, одиночество, неудача, зависть, гнев, усталость, тревога
     this.obstacleList = [
-      { char: '病', color: color(180, 60, 60) }, // болезнь
-      { char: '恐', color: color(80, 80, 180) }, // страх
-      { char: '疑', color: color(120, 120, 120) }, // сомнение
-      { char: '痛', color: color(200, 80, 80) }, // боль
-      { char: '孤', color: color(80, 120, 200) }, // одиночество
-      { char: '敗', color: color(120, 80, 180) }, // неудача
-      { char: '嫉', color: color(80, 180, 120) }, // зависть
-      { char: '怒', color: color(200, 120, 60) }, // гнев
-      { char: '疲', color: color(120, 120, 200) }, // усталость
-      { char: '悩', color: color(180, 120, 120) } // тревога
+      { char: '病', color: color(60, 30, 30) }, // болезнь
+      { char: '恐', color: color(30, 30, 60) }, // страх
+      { char: '疑', color: color(50, 50, 50) }, // сомнение
+      { char: '痛', color: color(80, 30, 30) }, // боль
+      { char: '孤', color: color(40, 60, 80) }, // одиночество
+      { char: '敗', color: color(50, 30, 60) }, // неудача
+      { char: '嫉', color: color(30, 60, 40) }, // зависть
+      { char: '怒', color: color(80, 50, 20) }, // гнев
+      { char: '疲', color: color(60, 60, 80) }, // усталость
+      { char: '悩', color: color(70, 50, 50) } // тревога
     ];
     let chosen = random(this.obstacleList);
     this.char = chosen.char;
