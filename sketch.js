@@ -254,6 +254,7 @@ function drawBee(x, y, bass) {
   // Темп влияет на скорость анимаций
   let tempo = tempoFactor;
 
+
   // --- Новые трансформации от темпа ---
   // Мягкое масштабирование, вращение и пульсация в зависимости от темпа
   // Чем выше tempoBPM, тем заметнее эффекты
@@ -268,6 +269,20 @@ function drawBee(x, y, bass) {
   let tempoRot = 0.12 * sin(t * 0.7 + tempo * 1.1) * drawBee.prevTempoNorm;
   // Пульсация тела
   let tempoPulse = 1 + 0.12 * sin(t * 2.5 + tempo * 1.5) * drawBee.prevTempoNorm;
+
+  // --- Движения пчелы ---
+  // Подпрыгивания (вертикальные) от баса
+  let jump = map(bass, 0, 255, 0, 18) * sin(t * 2.1 + bass * 0.01);
+  // Покачивания влево-вправо от mid
+  let sway = map(mid, 0, 255, 0, 12) * sin(t * 1.3 + mid * 0.02);
+  // Мелкая вибрация от treble
+  let vib = map(treble, 0, 255, 0, 4) * sin(t * 8.5 + treble * 0.05);
+  // Дополнительное движение от темпа (пульсация вверх-вниз)
+  let tempoMove = 10 * drawBee.prevTempoNorm * sin(t * 1.1 + tempo * 0.5);
+
+  // Итоговые смещения
+  let moveX = sway + vib;
+  let moveY = jump + tempoMove;
 
   // Плавное сглаживание параметров анимации
   let wingFreq = map(treble, 0, 255, 8, 18) * tempo;
@@ -288,7 +303,8 @@ function drawBee(x, y, bass) {
   // Тень под пчелой (реагирует на бас)
   let shadowSize = 28 + map(bass, 0, 255, 0, 18);
   push();
-  translate(x, y);
+  // Добавляем движения к позиции пчелы
+  translate(x + moveX, y + moveY);
   // Глобальное масштабирование и вращение от темпа
   scale(tempoScale, tempoScale);
   rotate(tempoRot);
