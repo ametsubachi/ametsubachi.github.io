@@ -127,17 +127,20 @@ function draw() {
     rect(i * barWidth, height - h, barWidth * 0.8, h, 4);
   }
 
-  for (let s of sparks) {
+  // Оптимизация: используем обычный for для минимизации аллокаций и ускорения
+  for (let i = 0, n = sparks.length; i < n; i++) {
+    let s = sparks[i];
     s.update(prevMid, tempoFactor);
     s.show();
-    // Постепенно возвращаем размер sparks к исходному
     s.size = lerp(s.size, s.baseSize || 5, 0.1);
   }
-  for (let f of flowers) {
+  for (let i = 0, n = flowers.length; i < n; i++) {
+    let f = flowers[i];
     f.update(prevTreble, tempoFactor);
     f.show(prevTreble);
   }
-  for (let b of bubbles) {
+  for (let i = 0, n = bubbles.length; i < n; i++) {
+    let b = bubbles[i];
     b.update(prevBass, tempoFactor);
     b.show();
   }
@@ -202,25 +205,25 @@ class ShintoCharm {
     // Пульсация размера
     this.size = this.baseSize + 6 * sin(frameCount * 0.08 + this.angle);
   }
-  show() {
-    let x = beeX + cos(this.angle) * this.radius;
-    let y = beeY + sin(this.angle) * this.radius;
-    push();
-    translate(x, y);
-    noStroke();
-    // Эффект сияния: пульсация альфы и легкое свечение
-    let glowAlpha = this.alpha + 80 * abs(sin(frameCount * 0.12 + this.angle * 2));
-    let glowSize = this.size * 1.25 + 4 * abs(sin(frameCount * 0.1 + this.angle));
-    drawingContext.shadowBlur = 18;
-    drawingContext.shadowColor = color(255, 255, 180, 180);
-    fill(this.baseColor.levels[0], this.baseColor.levels[1], this.baseColor.levels[2], glowAlpha);
-    text(this.char, 0, 0);
-    drawingContext.shadowBlur = 0;
-    fill(this.baseColor.levels[0], this.baseColor.levels[1], this.baseColor.levels[2], this.alpha + 40 * sin(frameCount * 0.1 + this.angle * 2));
-    textAlign(CENTER, CENTER);
-    textSize(this.size);
-    text(this.char, 0, 0);
-    pop();
+    show() {
+        let x = beeX + cos(this.angle) * this.radius;
+        let y = beeY + sin(this.angle) * this.radius;
+        push();
+        translate(x, y);
+        noStroke();
+        // Эффект сияния: пульсация альфы и легкое свечение
+        let glowAlpha = this.alpha + 80 * abs(sin(frameCount * 0.12 + this.angle * 2));
+        let glowSize = this.size * 1.25 + 4 * abs(sin(frameCount * 0.1 + this.angle));
+        drawingContext.shadowBlur = 18;
+        drawingContext.shadowColor = color(255, 255, 180, 180);
+        fill(this.baseColor.levels[0], this.baseColor.levels[1], this.baseColor.levels[2], glowAlpha);
+        text(this.char, 0, 0);
+        drawingContext.shadowBlur = 0;
+        fill(this.baseColor.levels[0], this.baseColor.levels[1], this.baseColor.levels[2], this.alpha + 40 * sin(frameCount * 0.1 + this.angle * 2));
+        textAlign(CENTER, CENTER);
+        textSize(this.size);
+        text(this.char, 0, 0);
+        pop();
   }
 }
 
@@ -288,12 +291,12 @@ class LifeObstacle {
       this.color = chosen.color;
     }
   }
-  show() {
-    noStroke();
-    fill(this.color.levels[0], this.color.levels[1], this.color.levels[2], this.alpha);
-    textAlign(CENTER, CENTER);
-    textSize(this.size);
-    text(this.char, this.x, this.y);
+    show() {
+        noStroke();
+        fill(this.color.levels[0], this.color.levels[1], this.color.levels[2], this.alpha);
+        textAlign(CENTER, CENTER);
+        textSize(this.size);
+        text(this.char, this.x, this.y);
   }
 }
 
