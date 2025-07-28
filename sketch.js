@@ -40,7 +40,7 @@ function setup() {
   beeY = height / 2;
 
   for (let i = 0; i < 40; i++) {
-    sparks.push(new Spark());
+    sparks.push(new ShintoCharm());
     flowers.push(new Flower());
     bubbles.push(new Bubble());
   }
@@ -173,24 +173,37 @@ function draw() {
 }
 
 // Класс для искр
-class Spark {
+// Класс для синтоистских иероглифов-талисманов
+class ShintoCharm {
   constructor() {
     this.angle = random(TWO_PI);
     this.radius = random(100, 250);
-    this.size = random(3, 6);
+    this.size = random(22, 36);
     this.baseSize = this.size;
-    this.alpha = random(100, 200);
+    this.alpha = random(120, 200);
     this.speed = random(0.005, 0.02);
+    // Список иероглифов-талисманов (значения: гармония, удача, защита, божество, связь, чистота, очищение, дракон, благословение, сердце)
+    this.charmList = ['和', '福', '守', '神', '縁', '清', '祓', '龍', '祝', '心'];
+    this.char = random(this.charmList);
+    this.color = color(random([color(255, 220, 80), color(255, 180, 80), color(200, 220, 255), color(255, 120, 120)]));
+    this.twinkle = random(0.5, 1.2);
   }
   update(mid, tempoFactor = 1) {
     this.angle += this.speed * map(mid, 0, 255, 0.5, 2) * tempoFactor;
+    // Пульсация размера
+    this.size = this.baseSize + 6 * sin(frameCount * 0.08 + this.angle);
   }
   show() {
     let x = beeX + cos(this.angle) * this.radius;
     let y = beeY + sin(this.angle) * this.radius;
+    push();
+    translate(x, y);
     noStroke();
-    fill(255, 255, 150, this.alpha);
-    ellipse(x, y, this.size);
+    fill(this.color.levels[0], this.color.levels[1], this.color.levels[2], this.alpha + 40 * sin(frameCount * 0.1 + this.angle * 2));
+    textAlign(CENTER, CENTER);
+    textSize(this.size);
+    text(this.char, 0, 0);
+    pop();
   }
 }
 
@@ -230,10 +243,10 @@ class Bubble {
     this.alpha = random(50, 150);
   }
   update(bass, tempoFactor = 1) {
-    this.y -= this.speed * map(bass, 0, 255, 0.5, 2) * tempoFactor;
+    this.y += this.speed * map(bass, 0, 255, 0.5, 2) * tempoFactor;
     this.size = this.baseSize + map(bass, 0, 255, 0, 5);
-    if (this.y < -this.size) {
-      this.y = height + this.size;
+    if (this.y > height + this.size) {
+      this.y = -this.size;
       this.x = random(width);
     }
   }
