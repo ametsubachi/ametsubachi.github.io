@@ -142,7 +142,7 @@ class LifeObstacle {
 // ...existing code...
 
 function preload() {
-  state.song = loadSound('./DELTARUNE_THE_WORLD_REVOLVING.mp3'); // локальный файл
+  state.song = loadSound('./Hope_and_dream.mp3'); // локальный файл
 }
 
 function setup() {
