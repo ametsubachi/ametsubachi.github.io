@@ -79,10 +79,6 @@ class ShintoCharm {
     pop();
   }
 }
-// ...existing code...
-// ...existing code...
-// ...existing code...
-// ...existing code...
 
 class Flower {
   constructor() {
@@ -106,7 +102,6 @@ class Flower {
     pop();
   }
 }
-// ...existing code...
 
 class LifeObstacle {
   constructor() {
@@ -139,7 +134,6 @@ class LifeObstacle {
     text(this.char, this.x, this.y);
   }
 }
-// ...existing code...
 
 function preload() {
   state.song = loadSound('./Hope_and_dream.mp3'); // локальный файл
